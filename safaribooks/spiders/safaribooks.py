@@ -5,6 +5,7 @@ import re
 import shutil
 import tempfile
 from functools import partial
+from urlparse import urljoin
 
 import scrapy
 # from scrapy.shell import inspect_response
@@ -47,11 +48,11 @@ def decode(s):
         return s
 
 class SafariBooksSpider(scrapy.spiders.Spider):
-    toc_url = 'https://www.safaribooksonline.com/nest/epub/toc/?book_id='
+    toc_url = 'https://learning.oreilly.com/nest/epub/toc/?book_id='
     name = 'SafariBooks'
     # allowed_domains = []
-    start_urls = ['https://www.safaribooksonline.com/']
-    host = 'https://www.safaribooksonline.com/'
+    start_urls = ['https://learning.oreilly.com/']
+    host = 'https://learning.oreilly.com/'
 
     def __init__(
         self,
@@ -90,7 +91,7 @@ class SafariBooksSpider(scrapy.spiders.Spider):
         if self.cookie is not None:
             cookies = dict(x.strip().split('=') for x in self.cookie.split(';'))
 
-            return scrapy.Request(url=self.host + 'home', 
+            return scrapy.Request(url=urljoin(self.host, 'home'),
                 callback=self.after_login,
                 cookies=cookies,
                 headers={
@@ -190,9 +191,10 @@ class SafariBooksSpider(scrapy.spiders.Spider):
 
             # fix for books which are one level down
             img = img.replace('../', '')
+            base = urljoin(self.host, 'library/view')
 
             yield scrapy.Request(
-                '/'.join((self.host, 'library/view', title, bookid, img)),
+                '/'.join((base, title, bookid, img)),
                 callback=partial(self.parse_content_img, img),
             )
 
@@ -216,13 +218,13 @@ class SafariBooksSpider(scrapy.spiders.Spider):
         ).groups()
 
         yield scrapy.Request(
-            self.host + cover_path,
+            urljoin(self.host, cover_path),
             callback=partial(self.parse_cover_img, 'cover-image'),
         )
 
         for item in toc['items']:
             yield scrapy.Request(
-                self.host + item['url'],
+                urljoin(self.host, item['url']),
                 callback=partial(
                     self.parse_page_json,
                     toc['title_safe'],
